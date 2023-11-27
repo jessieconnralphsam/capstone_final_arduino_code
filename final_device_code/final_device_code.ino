@@ -11,23 +11,14 @@
 
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
-SoftwareSerial mySerial(5, 6);
+SoftwareSerial mySerial(6, 5);
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 
-int value = 0;
+int waterLevel = 0;
 
 void setup() {
   Serial.begin(9600);
   mySerial.begin(9600);
-
-  pinMode(POWER_PIN, OUTPUT);
-  digitalWrite(POWER_PIN, LOW);
-
-  lcd.init();
-  lcd.backlight();
-
-  sensors.begin();
-
   Serial.println("Initializing...");
   delay(1000);
 
@@ -36,18 +27,37 @@ void setup() {
 
   mySerial.println("AT+CMGF=1");
   updateSerial();
+
+  mySerial.println("AT+CMGS=\"+639970987002\"");
+  pinMode(POWER_PIN, OUTPUT);
+  digitalWrite(POWER_PIN, LOW);
+
+  lcd.init();
+  lcd.backlight();
+
+  sensors.begin();
 }
 
 void loop() {
+  Serial.println("Inside loop");  // Debug statement
+
   sensors.requestTemperatures();
   float waterTemperature = sensors.getTempCByIndex(0);
 
   digitalWrite(POWER_PIN, HIGH);
   delay(10);
-  value = analogRead(SIGNAL_PIN);
+  waterLevel = analogRead(SIGNAL_PIN);
   digitalWrite(POWER_PIN, LOW);
 
-  float acidity = measureAcidity(); 
+  float acidity = measureAcidity();
+
+  // Debug prints
+  Serial.print("Water Temperature: ");
+  Serial.println(waterTemperature);
+  Serial.print("Water Level: ");
+  Serial.println(waterLevel);
+  Serial.print("Acidity (pH): ");
+  Serial.println(acidity);
 
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -59,17 +69,8 @@ void loop() {
   lcd.print("Acidity (pH): ");
   lcd.print(acidity);
 
-  Serial.print("Water Temperature: ");
-  Serial.print(waterTemperature);
-  Serial.print(" °C - Water Level: ");
-  Serial.println(value);
-
-  Serial.print("Acidity (pH): ");
-  Serial.println(acidity);
-
-  // Check if any condition is true, and send SMS
-  if (value == 0 || waterTemperature > 25 || acidity > 7) {
-    sendSMS(value, waterTemperature, acidity);
+  if (waterLevel == 0 || waterTemperature > 25 || acidity > 7) {
+    sendSMS(waterLevel, waterTemperature, acidity);
   }
 
   delay(5000);
@@ -88,7 +89,7 @@ float measureAcidity() {
 }
 
 void sendSMS(int waterLevel, float temperature, float acidity) {
-  mySerial.println("AT+CMGS=\"+639503379211\"");
+
   updateSerial();
 
   Serial.print("Water Level: ");
@@ -98,12 +99,18 @@ void sendSMS(int waterLevel, float temperature, float acidity) {
   Serial.print("Acidity (pH): ");
   Serial.println(acidity);
 
-  mySerial.print("Critical condition - Water Level: ");
-  mySerial.print(waterLevel);
-  mySerial.print(", Temperature: ");
-  mySerial.print(temperature);
-  mySerial.print(", Acidity (pH): ");
-  mySerial.print(acidity);
+  mySerial.println("Alert: Critical Water Conditions Detected!");
+
+  mySerial.print("🌊 Water Level: ");
+  mySerial.println(waterLevel);
+
+  mySerial.print("🌡 Temperature: ");
+  mySerial.println(temperature);
+
+  mySerial.print("🧪 Acidity (pH): ");
+  mySerial.println(acidity);
+
+  mySerial.print("Immediate action performed!");
   mySerial.write(26);
   updateSerial();
 
